@@ -2,26 +2,21 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 
 	"github.com/spf13/cobra"
 )
-
-
 var serverURL string
 
-	// Root command
-var monitor = &cobra.Command{
-	Use:   "repo-sender",
-	Short: "CLI tool to send GitHub repo links to a server",
+var monitorCmd = &cobra.Command{
+	Use:   "monitor [repo link]",
+	Short: "Send GitHub repo links to the server for monitoring",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) < 1 {
-			fmt.Println("Error: No GitHub repository link provided.")
-			os.Exit(1)
-		}
-
 		repoLink := args[0]
 		if err := sendRepoLink(serverURL, repoLink); err != nil {
 			fmt.Printf("Failed to send repo link: %v\n", err)
@@ -31,26 +26,30 @@ var monitor = &cobra.Command{
 		fmt.Println("Repository link sent successfully!")
 	},
 }
-func init(){
-	// Add a flag for the server URL
-	rootCmd.Flags().StringVarP(&serverURL, "server", "s", "http://localhost:8080", "Server URL to send the repo link")
-	rootCmd.AddCommand(monitor)
+
+func init() {
+	// Add server flag as a persistent flag
+	monitorCmd.Flags().StringVarP(&serverURL, "server", "s", "http://localhost:8080", "Server URL to send the repo link")
+	// Register monitor command to the root command
+	rootCmd.AddCommand(monitorCmd)
 }
 
-// Function to send the repository link to the server
+// Sends the repository link to the server
 func sendRepoLink(serverURL, repoLink string) error {
-	// Create the JSON payload
-	payload := fmt.Sprintf(`{"repo": "%s"}`, repoLink)
+	payload, err := json.Marshal(map[string]string{"repo": repoLink})
+	if err != nil {
+		return fmt.Errorf("error creating JSON payload: %w", err)
+	}
 
-	// Send POST request to the server
-	resp, err := http.Post(serverURL+"/repos", "application/json", bytes.NewBuffer([]byte(payload)))
+	resp, err := http.Post(serverURL+"/repos", "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		return fmt.Errorf("error sending POST request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("server responded with status: %s", resp.Status)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("server responded with status: %s, message: %s", resp.Status, string(body))
 	}
 
 	return nil
