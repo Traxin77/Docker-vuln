@@ -1,4 +1,4 @@
 sbom.json
 test.go
-result.json
+*.txt
 docker-vuln.exe

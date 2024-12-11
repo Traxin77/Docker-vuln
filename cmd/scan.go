@@ -18,14 +18,14 @@ var scanCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		imageName := args[0]
-		outputFile, _ := cmd.Flags().GetString("output") // Get the output flag if provided
+		outputFile, _ := cmd.Flags().GetString("output")
 		fmt.Printf("Scanning Docker image: %s\n", imageName)
 		scanImage(imageName, outputFile)
 	},
 }
 
 func init() {
-	scanCmd.Flags().StringP("output", "o", "", "Output file to store vulnerabilities in JSON format")
+	scanCmd.Flags().StringP("output", "o", "", "Output file to store vulnerabilities ")
 	rootCmd.AddCommand(scanCmd)
 }
 
@@ -90,35 +90,29 @@ func scanSBOM(sbomFile string) error {
 }
 
 func scanSBOMToFile(sbomFile, outputFile string) error {
-	// Create an output buffer to capture both stdout and stderr
 	var outputBuffer bytes.Buffer
 
-	// Run the osv-scanner command with the SBOM file
-	cmd := exec.Command("osv-scanner", "--sbom", sbomFile, "--json")
-	cmd.Stdout = &outputBuffer 
-	cmd.Stderr = &outputBuffer 
+	// Run the OSV-Scanner command and capture its output
+	cmd := exec.Command("osv-scanner", "--sbom", sbomFile)
+	cmd.Stdout = &outputBuffer
+	cmd.Stderr = &outputBuffer
 
-	// Run the command
 	err := cmd.Run()
 	if err != nil {
-		// Log a warning but do not stop execution
 		fmt.Printf("Warning: error running OSV-Scanner: %v\n", err)
 	}
 
 	// Get the content of the output buffer as a string
 	output := outputBuffer.String()
 
-	// Filter out lines containing the "Scanned ..." message
-	lines := strings.Split(output, "\n")
-	var filteredLines []string
-	for _, line := range lines {
-		if !strings.HasPrefix(line, "Scanned") {
-			filteredLines = append(filteredLines, line)
-		}
+	// Extract the table portion of the output
+	start := strings.Index(output, "+--------------------------------+")
+	end := strings.LastIndex(output, "+--------------------------------+")
+	if start == -1 || end == -1 {
+		return fmt.Errorf("failed to extract the table from OSV-Scanner output")
 	}
 
-	// Join the filtered lines back into a single string
-	filteredOutput := strings.Join(filteredLines, "\n")
+	table := output[start : end+len("+--------------------------------+")]
 
 	// Open or create the output file for writing
 	file, err := os.Create(outputFile)
@@ -127,10 +121,10 @@ func scanSBOMToFile(sbomFile, outputFile string) error {
 	}
 	defer file.Close()
 
-	// Write the filtered output to the file
-	_, err = file.Write([]byte(filteredOutput))
+	// Write the extracted table to the file
+	_, err = file.WriteString(table)
 	if err != nil {
-		return fmt.Errorf("failed to write output to file: %v", err)
+		return fmt.Errorf("failed to write table to file: %v", err)
 	}
 
 	// Confirm that the results were saved
