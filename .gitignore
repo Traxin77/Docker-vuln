@@ -2,3 +2,4 @@ sbom.json
 test.go
 *.txt
 docker-vuln.exe
+*.png

@@ -108,11 +108,12 @@ func scanSBOMToFile(sbomFile, outputFile string) error {
 	// Extract the table portion of the output
 	start := strings.Index(output, "+--------------------------------+")
 	end := strings.LastIndex(output, "+--------------------------------+")
-	if start == -1 || end == -1 {
-		return fmt.Errorf("failed to extract the table from OSV-Scanner output")
+	var table string
+	if start != -1 && end != -1 && end > start {
+		table = output[start : end+len("+--------------------------------+")]
+	} else {
+		table =  output
 	}
-
-	table := output[start : end+len("+--------------------------------+")]
 
 	// Open or create the output file for writing
 	file, err := os.Create(outputFile)
