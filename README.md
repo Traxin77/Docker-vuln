@@ -58,12 +58,14 @@ Scanning docker images
 ```Bash
 .\docker-vuln.exe scan <test_image>
 ```
-
 Scanning the docker images and storing the output
 ```Bash
-.\docker-vuln.exe scan <test_image> -o <file_name>.json
+.\docker-vuln.exe scan <test_image> -o <file_name>.txt
 ```
-
+Creating pie chart for the generated txt solution 
+```Bash
+.\docker-vuln.exe pie-chart result.txt
+```
 
 ## Authors
 
